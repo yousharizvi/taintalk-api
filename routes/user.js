@@ -4,6 +4,7 @@ const router = express.Router();
 const User = require('../models/user');
 const config = require('../config');
 const authService = require('../services/auth.service');
+const { sendOTPSMS } = require('../services/sms.service');
 const { authenticator } = require('otplib');
 const shortid = require('shortid');
 
@@ -112,6 +113,7 @@ router.get('/auth/verify/:id/:otp', async (req, res, next) => {
 
 function generateAndSendOTP(phone) {
   const otp = authenticator.generate(config.OTP_SECRET);
+  sendOTPSMS(phone, otp);
   return otp;
 }
 
