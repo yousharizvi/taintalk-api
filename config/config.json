@@ -1,0 +1,20 @@
+{
+  "development": {
+  },
+  "test": {
+  },
+  "production": {
+  },
+  "misc": {
+    "rowsPerPage": 10,
+    "customerTypes": [
+      "Manufacturer",
+      "Distributor",
+      "Importer",
+      "Trader",
+      "Wholesaler",
+      "Retailer"
+    ],
+    "dbLogging": false
+  }
+}
