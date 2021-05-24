@@ -12,4 +12,14 @@ async function sendOTPSMS(to, otp) {
   return response;
 }
 
-module.exports = { sendOTPSMS };
+async function sendForgotPasswordOTPSMS(to, otp) {
+  const response = await client.messages
+    .create({
+      body: `Your TainTalk reset password code is ${otp}`,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to
+    });
+  return response;
+}
+
+module.exports = { sendOTPSMS, sendForgotPasswordOTPSMS };

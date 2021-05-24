@@ -4,7 +4,7 @@ const router = express.Router();
 const User = require('../models/user');
 const config = require('../config');
 const authService = require('../services/auth.service');
-const { sendOTPSMS } = require('../services/sms.service');
+const { sendOTPSMS, sendForgotPasswordOTPSMS } = require('../services/sms.service');
 const { authenticator } = require('otplib');
 const shortid = require('shortid');
 
@@ -95,6 +95,32 @@ router.post('/auth/login', async (req, res, next) => {
   });
 });
 
+/* GET check username */
+router.get('/auth/check-username/:username', async (req, res, next) => {
+  const user = await User.findOne({ username: req.params.username });
+  if (user) return res.status(400).json({
+    success: false,
+    message: 'Username unavailable!'
+  });
+  return res.json({
+    success: true,
+    message: 'Username is available'
+  })
+});
+
+/* GET check email */
+router.get('/auth/check-email/:email', async (req, res, next) => {
+  const user = await User.findOne({ email: req.params.email });
+  if (user) return res.status(400).json({
+    success: false,
+    message: 'Email unavailable!'
+  });
+  return res.json({
+    success: true,
+    message: 'Email is available'
+  })
+});
+
 /* GET verify user */
 router.get('/auth/verify/:id/:otp', async (req, res, next) => {
   const user = await User.findById(req.params.id).select('verificationCode');
@@ -111,10 +137,8 @@ router.get('/auth/verify/:id/:otp', async (req, res, next) => {
   })
 });
 
-function generateAndSendOTP(phone) {
-  const otp = authenticator.generate(config.OTP_SECRET);
-  sendOTPSMS(phone, otp);
-  return otp;
+function generateOTP() {
+  return authenticator.generate(config.OTP_SECRET);
 }
 
 /* POST create new user. */
@@ -122,12 +146,14 @@ router.post('/auth/signup', async (req, res, next) => {
   let message = 'New user registered';
   let user;
   try {
+    const otp = generateOTP(req.body.phone)
     user = new User({
       ...req.body,
-      verificationCode: generateAndSendOTP(req.body.phone),
+      verificationCode: generateOTP(),
       referralCode: shortid.generate()
     });
     await user.save();
+    sendOTPSMS(req.body.phone, otp);
     user.password = user.verificationCode = undefined;
   } catch (err) {
     return res.json({
@@ -139,6 +165,51 @@ router.post('/auth/signup', async (req, res, next) => {
     success: true,
     message,
     data: user
+  });
+});
+
+/* POST forgot password. */
+router.post('/auth/forgot-password', async (req, res, next) => {
+  const user = User.findOne({ phone: req.body.phone });
+  if (!user) return res.status(400).json({
+    success: false,
+    message: 'User doesn\'t exist with this phone number'
+  });
+  if (!user.isActive) return res.status(400).json({
+    success: false,
+    message: 'User is inactive'
+  });
+  const otp = generateOTP();
+  user.verificationCode = otp;
+  user.save();
+  sendForgotPasswordOTPSMS(req.body.phone, otp);
+  return res.json({
+    success: true,
+    message: 'Forgot password sms sent!'
+  });
+});
+
+/* POST update password. */
+router.post('/auth/change-password', async (req, res, next) => {
+  const user = User.findOne({ phone: req.body.phone });
+  if (!user) return res.status(400).json({
+    success: false,
+    message: 'User doesn\'t exist with this phone number'
+  });
+  if (!user.isActive) return res.status(400).json({
+    success: false,
+    message: 'User is inactive'
+  });
+  if (req.body.otp != user.verificationCode) return res.status(401).json({
+    success: false,
+    message: 'Invalid otp'
+  })
+  user.verificationCode = null;
+  user.password = req.body.password;
+  user.save();
+  return res.json({
+    success: true,
+    message: 'Password updated!'
   });
 });
 
