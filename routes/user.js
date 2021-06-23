@@ -75,7 +75,7 @@ router.post('/auth/login', async (req, res, next) => {
     success: false,
     message: 'User doesn\'t exist with this email!'
   });
-  let isPasswordValid = user.comparePassword(req.body.password);
+  let isPasswordValid = await user.comparePassword(req.body.password);
   if (!isPasswordValid) return res.status(401).json({
     success: false,
     message: 'Invalid password!'
